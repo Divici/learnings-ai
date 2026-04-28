@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Learnings AI
 
-## Getting Started
+A personal AI engineering tool with two surfaces — a flashcard-based **Learning** review system over the user's Gauntlet AI lecture material, and a wizard-driven **Planning** tab that produces senior-engineer-style system design walkthroughs from app ideas.
 
-First, run the development server:
+See [`PRD.md`](./PRD.md) for product intent and [`docs/superpowers/specs/2026-04-27-learnings-ai-design.md`](./docs/superpowers/specs/2026-04-27-learnings-ai-design.md) for the implementation spec.
+
+## Stack
+
+Next.js (App Router) · TypeScript · Tailwind v4 · shadcn/ui · Drizzle + Postgres + pgvector · OpenRouter (Claude Haiku/Sonnet, Voyage embeddings) · Railway.
+
+## Local Setup
+
+Prerequisites: Node 20+, pnpm 9+, Postgres 16 with `pgvector`, Railway CLI (for deploys).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+cp .env.example .env.local
+# fill in values
+
+pnpm install
+pnpm db:migrate
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit `http://localhost:3000`. Paste your `LEARNINGS_AI_TOKEN` at `/auth`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Purpose |
+|---|---|
+| `pnpm dev` | Start dev server with Turbopack |
+| `pnpm build` | Production build |
+| `pnpm test:unit` | Vitest unit tests |
+| `pnpm test:component` | Vitest component tests |
+| `pnpm test:e2e` | Playwright E2E (auto-starts preview) |
+| `pnpm db:generate` | Drizzle Kit: generate SQL from schema |
+| `pnpm db:migrate` | Apply pending migrations |
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [`PRD.md`](./PRD.md) — product requirements
+- [`docs/superpowers/specs/`](./docs/superpowers/specs/) — implementation specs
+- [`docs/superpowers/plans/`](./docs/superpowers/plans/) — implementation plans
+- [`docs/adr/`](./docs/adr/) — architecture decision records
+- [`docs/design/`](./docs/design/) — visual reference HTML
