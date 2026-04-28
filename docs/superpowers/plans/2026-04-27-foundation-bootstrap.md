@@ -6,13 +6,18 @@
 
 **Architecture:** Next.js (App Router) + TypeScript + Tailwind v4 + shadcn/ui as primitives wrapped in custom glass components. Postgres 16 with pgvector via Drizzle ORM. Single-user auth via env-secret cookie validated in `middleware.ts`. Visual fidelity to `docs/design/lumina-style-reference.html` — animated watercolor blobs, noise overlay, floating pill header, glass sidebar with avatar / nav stubs / activity heatmap stub.
 
-**Tech Stack:** Next.js 15+, TypeScript 5+, Tailwind v4, shadcn/ui, `@phosphor-icons/react`, Drizzle ORM, `postgres` (driver), Vitest, React Testing Library, Playwright (+ `@axe-core/playwright`), pino, `@sentry/nextjs`, pnpm 9+.
+**Tech Stack:** Next.js 15+, TypeScript 5+, Tailwind v4, shadcn/ui, `@phosphor-icons/react`, Drizzle ORM, `postgres` (driver), Vitest, React Testing Library, Playwright (+ `@axe-core/playwright`), pino, pnpm 9+.
 
-**Spec reference:** [`docs/superpowers/specs/2026-04-27-learnings-ai-design.md`](../specs/2026-04-27-learnings-ai-design.md), focus on sections 2 (architecture), 3 (data model — full schema migration in this plan), 7.1-7.3 (visual system + persistent shell + sidebar shell), 8.1-8.5 + 8.7 (repo structure, env, deploy, CI, security baseline).
+**Spec reference:** [`docs/superpowers/specs/2026-04-27-learnings-ai-design.md`](../specs/2026-04-27-learnings-ai-design.md), focus on sections 2 (architecture), 3 (data model — full schema migration in this plan), 7.1-7.3 (visual system + persistent shell + sidebar shell), 8.1, 8.3 (repo structure, deploy).
 
 **Visual reference:** [`docs/design/lumina-style-reference.html`](../../design/lumina-style-reference.html).
 
-**Output of this plan:** A deployable Next.js app that authenticates against `LEARNINGS_AI_TOKEN`, renders the full mockup-faithful shell on every route, has the complete database schema migrated, passes typecheck/lint/unit/component/E2E/a11y CI gates, and successfully deploys to Railway with a green `/api/health`. No Learning content. No Planning content. No ingestion. Just the polished, empty house.
+**Output of this plan:** A deployable Next.js app that authenticates against `LEARNINGS_AI_TOKEN`, renders the full mockup-faithful shell on every route, has the complete database schema migrated, and successfully deploys to Railway with a green `/api/health`. No Learning content. No Planning content. No ingestion. Just the polished, empty house.
+
+**Plan revisions (post-launch, locked by user):**
+- Sentry dropped — single-user + Railway log streaming covers error visibility. Removes Task 17.
+- GitHub Actions CI dropped — solo dev workflow, Railway build runs tests on deploy. Removes Task 18.
+- Docker / testcontainers integration tests dropped — Task 8 simplified to accessor + seed only, no integration test. Schema verification happens on Railway deploy.
 
 ---
 
@@ -1193,96 +1198,14 @@ git commit -m "define complete database schema with drizzle, generate initial mi
 
 ## Task 8: Add `lib/db/settings.ts` typed accessor + seed script
 
+> **Simplified per user direction (post-launch):** testcontainer integration test removed because Docker is unavailable on the dev machine. Schema verification happens on Railway deploy. Task is now: write the accessor + seed script + verify with `tsc --noEmit`.
+
 **Files:**
-- Create: `lib/db/settings.ts`, `scripts/seed.ts`, `tests/unit/db.settings.test.ts`, `tests/fixtures/test-db.ts`
+- Create: `lib/db/settings.ts`, `scripts/seed.ts`
 
-- [ ] **Step 1: Create the test-DB helper**
+- [ ] **REMOVED — Steps 1–3, 5: Test-DB helper, failing test, run failing, run passing**
 
-`tests/fixtures/test-db.ts`:
-
-```ts
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import * as schema from "@/lib/db/schema";
-
-export type TestDb = {
-  container: StartedPostgreSqlContainer;
-  client: ReturnType<typeof postgres>;
-  db: ReturnType<typeof drizzle<typeof schema>>;
-  cleanup: () => Promise<void>;
-};
-
-export async function startTestDb(): Promise<TestDb> {
-  const container = await new PostgreSqlContainer("pgvector/pgvector:pg16")
-    .withDatabase("test")
-    .withUsername("test")
-    .withPassword("test")
-    .start();
-
-  const url = container.getConnectionUri();
-  const client = postgres(url, { max: 1 });
-  const db = drizzle(client, { schema });
-
-  await migrate(db, { migrationsFolder: "./db/migrations" });
-
-  return {
-    container,
-    client,
-    db,
-    cleanup: async () => {
-      await client.end({ timeout: 5 });
-      await container.stop();
-    },
-  };
-}
-```
-
-- [ ] **Step 2: Write failing test**
-
-`tests/unit/db.settings.test.ts`:
-
-```ts
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { startTestDb, type TestDb } from "@/tests/fixtures/test-db";
-import { getSettings, updateSettings } from "@/lib/db/settings";
-import { settings } from "@/lib/db/schema";
-
-let tdb: TestDb;
-
-beforeAll(async () => {
-  tdb = await startTestDb();
-  await tdb.db.insert(settings).values({ id: 1 });
-}, 60_000);
-
-afterAll(async () => {
-  await tdb.cleanup();
-});
-
-describe("settings", () => {
-  it("returns the singleton row", async () => {
-    const s = await getSettings(tdb.db);
-    expect(s.id).toBe(1);
-    expect(s.dailyTarget).toBe(20);
-    expect(s.theme).toBe("dark");
-  });
-
-  it("updates the daily target", async () => {
-    await updateSettings(tdb.db, { dailyTarget: 35 });
-    const s = await getSettings(tdb.db);
-    expect(s.dailyTarget).toBe(35);
-  });
-});
-```
-
-- [ ] **Step 3: Run test to verify it fails**
-
-```bash
-pnpm test:unit
-```
-
-Expected: FAIL — `getSettings` / `updateSettings` not exported.
+(Was: testcontainer + integration test for `getSettings`/`updateSettings`. Removed because no Docker; schema verification happens on Railway deploy.)
 
 - [ ] **Step 4: Implement `lib/db/settings.ts`**
 
@@ -1316,13 +1239,13 @@ export async function updateSettings(
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] **Step 5: Verify with `pnpm tsc --noEmit`**
 
 ```bash
-pnpm test:unit
+pnpm tsc --noEmit
 ```
 
-Expected: PASS.
+Expected: clean (no errors). The accessor is a thin Drizzle wrapper; deeper testing emerges later when settings logic gets used by features.
 
 - [ ] **Step 6: Create the seed script**
 
@@ -2471,227 +2394,10 @@ git commit -m "configure playwright with visual regression baseline for the shel
 
 ---
 
-## Task 17: Wire Sentry
+## Tasks 17 + 18: REMOVED
 
-**Files:**
-- Create: `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, `instrumentation.ts`
-- Modify: `next.config.ts`
+> Sentry and GitHub Actions CI were dropped per user direction. Single-user app uses Railway log streaming for errors. Tests run locally before push; Railway build is the deploy gate.
 
-- [ ] **Step 1: Run the Sentry wizard**
-
-```bash
-pnpm exec @sentry/wizard@latest -i nextjs
-```
-
-Walk through the prompts: yes to source maps upload, accept default sample rates. The wizard creates the four config files; review them.
-
-- [ ] **Step 2: Tighten the configs**
-
-Replace the contents of the wizard-generated `sentry.server.config.ts` with:
-
-```ts
-import * as Sentry from "@sentry/nextjs";
-import { env } from "@/lib/env";
-
-Sentry.init({
-  dsn: env.SENTRY_DSN,
-  enabled: !!env.SENTRY_DSN && env.NODE_ENV === "production",
-  tracesSampleRate: 0.1,
-  profilesSampleRate: 0,
-  environment: env.NODE_ENV,
-  beforeSend(event) {
-    // Strip headers that may leak the auth cookie
-    if (event.request?.headers) {
-      delete event.request.headers["cookie"];
-      delete event.request.headers["authorization"];
-    }
-    return event;
-  },
-});
-```
-
-Apply parallel changes to `sentry.client.config.ts` (without the `beforeSend` headers stripping — client doesn't see them) and `sentry.edge.config.ts`.
-
-- [ ] **Step 3: Smoke test by throwing a deliberate error in dev**
-
-Add a temporary test route `app/api/_sentry-test/route.ts`:
-
-```ts
-export const dynamic = "force-dynamic";
-export async function GET() {
-  throw new Error("Sentry wiring smoke test");
-}
-```
-
-`pnpm dev`, hit `http://localhost:3000/api/_sentry-test` — confirm the error reaches Sentry (or just confirm the local error logs show it tagged with sentry instrumentation). Then **delete the test route**.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add .
-git commit -m "wire sentry with auth-header redaction and production-only sampling"
-```
-
----
-
-## Task 18: GitHub Actions CI
-
-**Files:**
-- Create: `.github/workflows/ci.yml`
-
-- [ ] **Step 1: Create `.github/workflows/ci.yml`**
-
-```yaml
-name: CI
-
-on:
-  pull_request:
-  push:
-    branches: [main]
-
-env:
-  NODE_VERSION: "20"
-  PNPM_VERSION: "9"
-
-jobs:
-  install:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: "${{ env.PNPM_VERSION }}" }
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "${{ env.NODE_VERSION }}"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-
-  lint:
-    needs: install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: "${{ env.PNPM_VERSION }}" }
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "${{ env.NODE_VERSION }}"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-
-  typecheck:
-    needs: install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: "${{ env.PNPM_VERSION }}" }
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "${{ env.NODE_VERSION }}"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-
-  unit:
-    needs: install
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
-    env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
-      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/test
-      LEARNINGS_AI_TOKEN: ${{ secrets.CI_LEARNINGS_AI_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: "${{ env.PNPM_VERSION }}" }
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "${{ env.NODE_VERSION }}"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm db:migrate
-      - run: pnpm test:unit
-      - run: pnpm test:component
-
-  build:
-    needs: install
-    runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: postgres://stub:stub@stub:5432/stub
-      LEARNINGS_AI_TOKEN: ${{ secrets.CI_LEARNINGS_AI_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: "${{ env.PNPM_VERSION }}" }
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "${{ env.NODE_VERSION }}"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-
-  e2e:
-    needs: install
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
-    env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
-      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/test
-      LEARNINGS_AI_TOKEN: ${{ secrets.CI_LEARNINGS_AI_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: "${{ env.PNPM_VERSION }}" }
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "${{ env.NODE_VERSION }}"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps
-      - run: pnpm db:migrate
-      - run: pnpm db:seed
-      - run: pnpm test:e2e
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
-```
-
-- [ ] **Step 2: Configure required GitHub Secrets**
-
-In the repo settings → Secrets and variables → Actions, add:
-- `CI_LEARNINGS_AI_TOKEN` — a 32+ char random string (different from production)
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add .
-git commit -m "add github actions ci with lint, typecheck, unit, component, build, and e2e jobs"
-```
-
----
 
 ## Task 19: Author the first two ADRs
 
