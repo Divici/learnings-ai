@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { Cards, MapTrifold, Plus } from "@phosphor-icons/react/dist/ssr";
 
 export type SidebarProps = {
@@ -81,7 +82,7 @@ function NavLink({
   icon,
   label,
 }: {
-  href: string;
+  href: Route;
   active: boolean;
   icon: React.ReactNode;
   label: string;
