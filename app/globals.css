@@ -60,6 +60,7 @@ body {
     rgba(255, 255, 255, 0.01) 100%
   );
   backdrop-filter: var(--blur-light);
+  -webkit-backdrop-filter: var(--blur-light);
   border: 1px solid var(--glass-border);
   transition: all 0.3s ease;
 }
