@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const valuesSpy = vi.fn(() => Promise.resolve());
 vi.mock("@/lib/db", () => ({
-  db: { insert: vi.fn(() => ({ values: vi.fn(() => Promise.resolve()) })) },
+  db: { insert: vi.fn(() => ({ values: valuesSpy })) },
 }));
 
 vi.mock("@/lib/log", () => ({
@@ -13,6 +14,7 @@ import { db } from "@/lib/db";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  valuesSpy.mockClear();
 });
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -41,6 +43,9 @@ describe("chatCompletion", () => {
     expect(out.inputTokens).toBe(100);
     expect(out.outputTokens).toBe(20);
     expect(db.insert).toHaveBeenCalledTimes(1);
+    expect(valuesSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "success", error: null }),
+    );
   });
 
   it("retries 429 then succeeds", async () => {
@@ -63,6 +68,9 @@ describe("chatCompletion", () => {
     });
     expect(out.content).toBe("ok");
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(valuesSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "retry" }),
+    );
   });
 
   it("throws after 3 failures and logs status=failed", async () => {
@@ -79,6 +87,53 @@ describe("chatCompletion", () => {
     ).rejects.toThrow();
     expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(db.insert).toHaveBeenCalledTimes(1); // failure row written once
+    expect(valuesSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "failed" }),
+    );
+    const firstCall = valuesSpy.mock.calls.at(0);
+    const calledWith = firstCall?.at(0) as { error: string } | undefined;
+    expect(typeof calledWith?.error).toBe("string");
+    expect(calledWith?.error?.length).toBeGreaterThan(0);
+  });
+
+  it("does not retry on 401 unauthorized", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ error: "bad key" }, 401));
+    await expect(
+      chatCompletion({
+        apiKey: "sk-x",
+        model: "anthropic/claude-haiku-4-5",
+        messages: [{ role: "user", content: "hi" }],
+        module: "test.401",
+        fetchImpl,
+        backoffMs: 1,
+      }),
+    ).rejects.toThrow();
+    expect(fetchImpl).toHaveBeenCalledTimes(1); // no retry
+    expect(valuesSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "failed" }),
+    );
+  });
+
+  it("retries when fetch throws (network error)", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          choices: [{ message: { content: "ok" } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        }),
+      );
+    const out = await chatCompletion({
+      apiKey: "sk-x",
+      model: "anthropic/claude-haiku-4-5",
+      messages: [{ role: "user", content: "hi" }],
+      module: "test.netfail",
+      fetchImpl,
+      backoffMs: 1,
+    });
+    expect(out.content).toBe("ok");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 });
 

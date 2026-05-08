@@ -6,6 +6,21 @@ import { log } from "@/lib/log";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
+async function fetchWithTimeout(
+  fetchImpl: typeof fetch,
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    return await fetchImpl(url, { ...init, signal: ac.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
@@ -105,20 +120,25 @@ export async function chatCompletion(
   try {
     const { value, attempts } = await withRetries(
       () =>
-        fetchImpl(`${OPENROUTER_BASE_URL}/chat/completions`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${opts.apiKey}`,
-            "Content-Type": "application/json",
+        fetchWithTimeout(
+          fetchImpl,
+          `${OPENROUTER_BASE_URL}/chat/completions`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${opts.apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: opts.model,
+              messages: opts.messages,
+              temperature: opts.temperature ?? 0.2,
+              max_tokens: opts.maxTokens ?? 4096,
+              ...(opts.responseFormat ? { response_format: opts.responseFormat } : {}),
+            }),
           },
-          body: JSON.stringify({
-            model: opts.model,
-            messages: opts.messages,
-            temperature: opts.temperature ?? 0.2,
-            max_tokens: opts.maxTokens ?? 4096,
-            ...(opts.responseFormat ? { response_format: opts.responseFormat } : {}),
-          }),
-        }),
+          60_000,
+        ),
       { backoffMs: opts.backoffMs ?? 1000 },
       async (r) =>
         (await r.json()) as {
@@ -164,17 +184,22 @@ export async function embed(opts: EmbedOptions): Promise<EmbedResult> {
   try {
     const { value, attempts } = await withRetries(
       () =>
-        fetchImpl(`${OPENROUTER_BASE_URL}/embeddings`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${opts.apiKey}`,
-            "Content-Type": "application/json",
+        fetchWithTimeout(
+          fetchImpl,
+          `${OPENROUTER_BASE_URL}/embeddings`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${opts.apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: opts.model,
+              input: opts.input,
+            }),
           },
-          body: JSON.stringify({
-            model: opts.model,
-            input: opts.input,
-          }),
-        }),
+          30_000,
+        ),
       { backoffMs: opts.backoffMs ?? 1000 },
       async (r) =>
         (await r.json()) as {
@@ -182,6 +207,11 @@ export async function embed(opts: EmbedOptions): Promise<EmbedResult> {
           usage: { prompt_tokens: number; total_tokens: number };
         },
     );
+    if (value.data.length !== opts.input.length) {
+      throw new Error(
+        `embed: expected ${opts.input.length} vectors, got ${value.data.length}`,
+      );
+    }
     const latencyMs = Date.now() - start;
     const inputTokens = value.usage.prompt_tokens;
     await logCall({
