@@ -22,12 +22,6 @@
   --blur-light: blur(12px);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 html,
 body {
   height: 100%;
@@ -46,11 +40,17 @@ body {
 .glass-panel {
   background: var(--glass-bg);
   backdrop-filter: var(--blur-heavy);
-  -webkit-backdrop-filter: var(--blur-heavy);
   border: 1px solid var(--glass-border);
   box-shadow:
     0 24px 48px -12px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 0 var(--glass-highlight);
+}
+
+/* Separate rule so lightningcss does not deduplicate the unprefixed line away. */
+@supports (-webkit-backdrop-filter: blur(40px)) {
+  .glass-panel {
+    -webkit-backdrop-filter: var(--blur-heavy);
+  }
 }
 
 .glass-card {
@@ -60,9 +60,14 @@ body {
     rgba(255, 255, 255, 0.01) 100%
   );
   backdrop-filter: var(--blur-light);
-  -webkit-backdrop-filter: var(--blur-light);
   border: 1px solid var(--glass-border);
   transition: all 0.3s ease;
+}
+
+@supports (-webkit-backdrop-filter: blur(12px)) {
+  .glass-card {
+    -webkit-backdrop-filter: var(--blur-light);
+  }
 }
 
 .glass-card:hover {

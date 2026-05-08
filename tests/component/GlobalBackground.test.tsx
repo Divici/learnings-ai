@@ -16,8 +16,12 @@ describe("GlobalBackground", () => {
     expect(container.querySelector(".blob-3")).toBeInTheDocument();
   });
 
-  it("has aria-hidden on the wrapper (decorative)", () => {
+  it("marks every decorative layer aria-hidden", () => {
     const { container } = render(<GlobalBackground />);
-    expect(container.firstChild).toHaveAttribute("aria-hidden", "true");
+    const layers = container.querySelectorAll(".watercolor-blob, .noise-overlay");
+    expect(layers).toHaveLength(4);
+    layers.forEach((el) => {
+      expect(el).toHaveAttribute("aria-hidden", "true");
+    });
   });
 });
