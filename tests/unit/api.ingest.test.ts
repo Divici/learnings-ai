@@ -26,8 +26,7 @@ beforeEach(() => {
 describe("POST /api/ingest", () => {
   it("returns 503 if OPENROUTER_API_KEY missing", async () => {
     const original = env.OPENROUTER_API_KEY;
-    // @ts-expect-error — intentionally clearing to test guard
-    env.OPENROUTER_API_KEY = undefined;
+    (env as any).OPENROUTER_API_KEY = undefined;
     try {
       const res = await POST(new Request("http://x/api/ingest", { method: "POST", body: "{}" }));
       expect(res.status).toBe(503);
