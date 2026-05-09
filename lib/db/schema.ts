@@ -46,16 +46,20 @@ export const themeEnum = pgEnum("theme", ["dark", "light", "system"]);
 
 // ─── source material ────────────────────────────────────────
 
-export const sourceFiles = pgTable("source_files", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  filename: text("filename").notNull(),
-  title: text("title").notNull(),
-  contentHash: text("content_hash").notNull(),
-  ingestedAt: timestamp("ingested_at", { withTimezone: true }).notNull(),
-  chunkCount: integer("chunk_count").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const sourceFiles = pgTable(
+  "source_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    filename: text("filename").notNull(),
+    title: text("title").notNull(),
+    contentHash: text("content_hash").notNull(),
+    ingestedAt: timestamp("ingested_at", { withTimezone: true }).notNull(),
+    chunkCount: integer("chunk_count").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("source_files_filename_unique").on(t.filename)],
+);
 
 export const sourceChunks = pgTable(
   "source_chunks",

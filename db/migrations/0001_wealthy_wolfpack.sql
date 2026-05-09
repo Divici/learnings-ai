@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "source_files_filename_unique" ON "source_files" USING btree ("filename");

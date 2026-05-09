@@ -8,6 +8,13 @@
       "when": 1777340355887,
       "tag": "0000_same_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778288345621,
+      "tag": "0001_wealthy_wolfpack",
+      "breakpoints": true
     }
   ]
 }

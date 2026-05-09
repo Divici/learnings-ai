@@ -94,17 +94,24 @@ export async function runPass1(opts: Pass1Options): Promise<Pass1Result> {
   });
   if (!fileRow) throw new Error(`source_files row missing after upsert: ${opts.filename}`);
 
-  await opts.db.insert(sourceChunks).values(
-    chunks.map((c, i) => ({
+  const rows = chunks.map((c, i) => {
+    const vec = embedded.vectors[i];
+    if (!vec) {
+      throw new Error(
+        `embedder returned no vector for chunk ${i} of ${opts.filename}`,
+      );
+    }
+    return {
       fileId: fileRow.id,
       position: c.position,
       content: c.content,
       headingPath: c.headingPath,
-      embedding: embedded.vectors[i] ?? [],
+      embedding: vec,
       tokenCount: c.tokenCount,
       topicTags: tagged.tags[i] ?? [],
-    })),
-  );
+    };
+  });
+  await opts.db.insert(sourceChunks).values(rows);
 
   return {
     skipped: false,
