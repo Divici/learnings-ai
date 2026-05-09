@@ -48,7 +48,14 @@ async function main() {
   // --- Regenerate-cards path (skips Pass 1 + full Pass 2) ---
   // Note: Task 17 will wire this up. For now, document the flag and exit cleanly if used.
   if (values["regenerate-cards"]) {
-    console.log(`(--regenerate-cards path will be wired up in Task 17.)`);
+    const { regenerateCards } = await import("@/lib/ingest/pass2");
+    const out = await regenerateCards({
+      apiKey,
+      haikuModel,
+      conceptName: values["regenerate-cards"],
+      db,
+    });
+    console.log(`✓ Regenerated cards for "${values["regenerate-cards"]}": disabled ${out.disabled}, created ${out.created}`);
     await queryClient.end();
     return;
   }

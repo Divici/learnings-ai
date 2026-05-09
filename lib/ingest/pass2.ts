@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { cards, concepts, settings } from "@/lib/db/schema";
 import { extractConcepts } from "@/lib/ingest/concepts";
@@ -191,4 +191,66 @@ export async function runPass2(opts: Pass2Options): Promise<Pass2Result> {
     cardCount,
     disabledCount,
   };
+}
+
+export type RegenerateCardsOptions = {
+  apiKey: string;
+  haikuModel: string;
+  conceptName: string;
+  db: Database;
+  fetchImpl?: typeof fetch;
+};
+
+export type RegenerateCardsResult = { disabled: number; created: number };
+
+export async function regenerateCards(
+  opts: RegenerateCardsOptions,
+): Promise<RegenerateCardsResult> {
+  const concept = await opts.db.query.concepts.findFirst({
+    where: (c, { eq }) => eq(c.name, opts.conceptName),
+  });
+  if (!concept) {
+    throw new Error(`No concept named "${opts.conceptName}"`);
+  }
+
+  // Disable existing cards under this concept.
+  await opts.db.update(cards).set({ isDisabled: true }).where(eq(cards.conceptId, concept.id));
+
+  // Fetch the concept's source chunks for context.
+  const sourceChunkRows = await opts.db.query.sourceChunks.findMany({
+    where: (sc) => inArray(sc.id, concept.sourceChunkIds),
+    columns: { id: true, content: true },
+  });
+
+  const generated = await generateCards({
+    apiKey: opts.apiKey,
+    model: opts.haikuModel,
+    concept: {
+      name: concept.name,
+      canonicalSummary: concept.canonicalSummary,
+      parentTopic: concept.parentTopic,
+      sourceChunks: sourceChunkRows,
+    },
+    neighbors: findNeighbors(concept.name),
+    ...(opts.fetchImpl !== undefined ? { fetchImpl: opts.fetchImpl } : {}),
+  });
+
+  if (generated.cards.length > 0) {
+    await opts.db.insert(cards).values(
+      generated.cards.map((c) => ({
+        conceptId: concept.id,
+        cardType: c.cardType,
+        prompt: c.prompt,
+        canonicalAnswer: c.canonicalAnswer,
+        explanation: c.explanation,
+        difficulty: c.difficulty,
+        sourceChunkIds: c.sourceChunkIds,
+        mcOptions: c.mcOptions ?? null,
+        clozeAnswers: c.clozeAnswers ?? null,
+        rubric: c.rubric ?? null,
+      })),
+    );
+  }
+
+  return { disabled: 1, created: generated.cards.length };
 }
