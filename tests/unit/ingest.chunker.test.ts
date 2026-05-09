@@ -38,4 +38,13 @@ describe("chunkMarkdown", () => {
     const chunks = chunkMarkdown(fix("tiny-lecture.md"));
     chunks.forEach((c, i) => expect(c.position).toBe(i));
   });
+
+  it("respects TARGET_MAX even when content has no terminal punctuation (slide style)", () => {
+    const chunks = chunkMarkdown(fix("slide-no-periods.md"));
+    expect(chunks.length).toBeGreaterThan(1);
+    chunks.forEach((c) => {
+      expect(c.tokenCount).toBeLessThanOrEqual(500);
+      expect(c.tokenCount).toBeGreaterThanOrEqual(50);
+    });
+  });
 });

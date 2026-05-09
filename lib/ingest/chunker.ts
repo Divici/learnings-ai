@@ -9,9 +9,6 @@ export type Chunk = {
   content: string;
   headingPath: string[];
   tokenCount: number;
-  /** True for chunks that came from splitting an oversized section, used
-   *  by orchestrators that want to track provenance. */
-  splitOf?: number;
 };
 
 const MIN_TOKENS = 50;
@@ -71,6 +68,25 @@ function extractSections(md: string): RawSection[] {
   return sections;
 }
 
+function wordSplit(sentence: string, maxTokens: number): string[] {
+  const words = sentence.split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  let buf: string[] = [];
+  let bufTok = 0;
+  for (const w of words) {
+    const wTok = countTokens(w);
+    if (bufTok + wTok > maxTokens && buf.length > 0) {
+      out.push(buf.join(" "));
+      buf = [];
+      bufTok = 0;
+    }
+    buf.push(w);
+    bufTok += wTok;
+  }
+  if (buf.length) out.push(buf.join(" "));
+  return out;
+}
+
 function splitOversized(section: RawSection, startPosition: number): Chunk[] {
   const sentences = section.content
     .replace(/\s+/g, " ")
@@ -83,6 +99,19 @@ function splitOversized(section: RawSection, startPosition: number): Chunk[] {
 
   for (const sent of sentences) {
     const sTok = countTokens(sent);
+    if (sTok > TARGET_MAX) {
+      // Flush current buf first (if any).
+      if (buf.length > 0) {
+        chunks.push(buf.join(" "));
+        buf = [];
+        bufTokens = 0;
+      }
+      // Word-split the oversized sentence into its own chunks.
+      for (const piece of wordSplit(sent, TARGET_MAX)) {
+        chunks.push(piece);
+      }
+      continue;
+    }
     if (bufTokens + sTok > TARGET_MAX && buf.length > 0) {
       chunks.push(buf.join(" "));
       // Carry overlap (last ~20% of the buffer) into the next chunk
@@ -102,7 +131,6 @@ function splitOversized(section: RawSection, startPosition: number): Chunk[] {
     content: content.trim(),
     headingPath: section.headingPath,
     tokenCount: countTokens(content),
-    splitOf: startPosition,
   }));
 }
 
