@@ -18,7 +18,8 @@
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "ingest": "tsx scripts/ingest.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
