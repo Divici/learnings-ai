@@ -57,6 +57,14 @@ describe("structuredChat", () => {
     });
     expect(out.value).toEqual({ tags: ["a"] });
     expect(vi.mocked(chatCompletion)).toHaveBeenCalledTimes(2);
+    const calls = vi.mocked(chatCompletion).mock.calls;
+    const secondCall = calls[1]?.[0];
+    expect(secondCall).toBeDefined();
+    const secondMessages = secondCall!.messages;
+    const lastMessage = secondMessages.at(-1);
+    expect(lastMessage?.role).toBe("user");
+    expect(lastMessage?.content).toMatch(/could not be parsed/);
+    expect(lastMessage?.content).toMatch(/Reply with ONLY the corrected JSON/);
   });
 
   it("throws after one failed retry", async () => {
@@ -75,6 +83,6 @@ describe("structuredChat", () => {
         userPrompt: "go",
         schema: Schema,
       }),
-    ).rejects.toThrow(/structured-output/);
+    ).rejects.toThrow(/structured-output failed after retry \(module=test\): attempt1=.+; attempt2=.+/);
   });
 });

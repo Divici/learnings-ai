@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { ZodType } from "zod";
 import { chatCompletion } from "@/lib/llm/client";
 
@@ -14,7 +15,7 @@ export type StructuredChatOptions<S extends ZodType> = {
 };
 
 export type StructuredChatResult<S extends ZodType> = {
-  value: S["_zod"]["output"];
+  value: z.infer<S>;
   inputTokens: number;
   outputTokens: number;
   latencyMs: number;
@@ -58,7 +59,7 @@ export async function structuredChat<S extends ZodType>(
   const first = await attempt();
   try {
     const parsed = tryParseJson(first.content);
-    const value = opts.schema.parse(parsed) as S["_zod"]["output"];
+    const value = opts.schema.parse(parsed) as z.infer<S>;
     return {
       value,
       inputTokens: first.inputTokens,
@@ -73,7 +74,7 @@ export async function structuredChat<S extends ZodType>(
     );
     try {
       const parsed = tryParseJson(second.content);
-      const value = opts.schema.parse(parsed) as S["_zod"]["output"];
+      const value = opts.schema.parse(parsed) as z.infer<S>;
       return {
         value,
         inputTokens: second.inputTokens,
@@ -82,9 +83,8 @@ export async function structuredChat<S extends ZodType>(
       };
     } catch (err2) {
       throw new Error(
-        `structured-output failed after retry (module=${opts.module}): ${
-          err2 instanceof Error ? err2.message : String(err2)
-        }`,
+        `structured-output failed after retry (module=${opts.module}): ` +
+          `attempt1=${errMsg.slice(0, 300)}; attempt2=${(err2 instanceof Error ? err2.message : String(err2)).slice(0, 300)}`,
       );
     }
   }
