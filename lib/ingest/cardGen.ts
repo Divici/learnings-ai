@@ -73,19 +73,33 @@ export type GenerateCardsOptions = {
 export type GenerateCardsResult = { cards: GeneratedCard[] };
 
 const SYSTEM_PROMPT = `You generate spaced-repetition cards for AI-engineering
-concepts. Each call must produce exactly 8 cards mixed 3 MC + 3 cloze + 2 freeform.
+concepts. Each call must produce exactly 8 cards: 3 multiple-choice, 3 cloze, 2 freeform.
+
+CRITICAL: the "card_type" field MUST be exactly one of these three lowercase strings — no other value:
+  "mc"        for multiple-choice cards
+  "cloze"     for fill-in-the-blank cards
+  "freeform"  for open-ended cards
 
 Rules:
 - All cards reference at least one source_chunk_id from the provided chunks.
-- MC: 4 options, exactly 1 correct, distractors plausible.
-- Cloze: prompts use {{c1::answer}} syntax — one or more blanks.
-- Freeform: include rubric of 2-4 criteria (weights sum to ~1.0).
-- difficulty 1=fact recall, 2=apply concept, 3=compare/synthesize.
+- difficulty is an integer: 1 = fact recall, 2 = apply concept, 3 = compare/synthesize.
+- "mc" cards: include "mc_options": { "options": [4 strings], "correct_index": int 0-3 }.
+- "cloze" cards: prompt MUST contain {{c1::answer}} syntax (one or more blanks); include "cloze_answers": [string per blank].
+- "freeform" cards: include "rubric": [{ "criterion": string, "weight": number 0-1 }] with 2-4 criteria, weights summing to ~1.0.
 
-If a "compare with" neighbor is supplied, ONE of the freeform cards must be a
+If a "Compare with:" neighbor is supplied in the user prompt, ONE of the freeform cards must be a
 compare/contrast or "when to use which" question against that neighbor.
 
-Return JSON: { "cards": [...] }.`;
+Return ONLY JSON of this shape (no prose, no markdown fences):
+{ "cards": [
+  { "card_type": "mc", "prompt": "...", "canonical_answer": "...", "explanation": "...",
+    "difficulty": 2, "source_chunk_ids": ["uuid"], "mc_options": { "options": ["a","b","c","d"], "correct_index": 1 } },
+  { "card_type": "cloze", "prompt": "The {{c1::answer}} is here.", "canonical_answer": "answer", "explanation": "...",
+    "difficulty": 1, "source_chunk_ids": ["uuid"], "cloze_answers": ["answer"] },
+  { "card_type": "freeform", "prompt": "...", "canonical_answer": "...", "explanation": "...",
+    "difficulty": 3, "source_chunk_ids": ["uuid"],
+    "rubric": [{ "criterion": "names key tradeoff", "weight": 0.5 }, { "criterion": "gives concrete example", "weight": 0.5 }] }
+] }`;
 
 function buildUserPrompt(opts: GenerateCardsOptions): string {
   const compareLine = opts.neighbors.length
@@ -113,7 +127,7 @@ export async function generateCards(
     systemPrompt: SYSTEM_PROMPT,
     userPrompt: buildUserPrompt(opts),
     schema: CardGenSchema,
-    maxTokens: 4096,
+    maxTokens: 8192,
     ...(opts.fetchImpl !== undefined ? { fetchImpl: opts.fetchImpl } : {}),
   });
 
