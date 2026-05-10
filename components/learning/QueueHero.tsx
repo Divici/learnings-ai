@@ -4,9 +4,10 @@ import Link from "next/link";
 export type QueueHeroProps = {
   dueCount: number;
   topicBreakdown: Array<{ name: string; count: number; tone: "blue" | "purple" | "teal" }>;
+  streak?: number;
 };
 
-export function QueueHero({ dueCount, topicBreakdown }: QueueHeroProps) {
+export function QueueHero({ dueCount, topicBreakdown, streak }: QueueHeroProps) {
   return (
     <GlassPanel className="rounded-2xl p-12 max-w-2xl mx-auto flex flex-col items-center text-center">
       <div className="text-[10px] uppercase tracking-widest text-blue-400 font-semibold mb-2">Today's Queue</div>
@@ -27,6 +28,11 @@ export function QueueHero({ dueCount, topicBreakdown }: QueueHeroProps) {
           );
         })}
       </div>
+      {streak !== undefined && streak > 0 && (
+        <div className="text-[10px] uppercase tracking-widest text-orange-400 font-mono mb-2">
+          🔥 {streak}-day streak
+        </div>
+      )}
       <Link
         href={{ pathname: "/learning", query: { session: "new" } }}
         className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-medium hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-shadow"

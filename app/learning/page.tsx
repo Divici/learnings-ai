@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
+import { sql } from "drizzle-orm";
 import { dueQueue, unseenCandidates, fillNewCardsWithMastery } from "@/lib/srs/queue";
 import { masteryByConcept } from "@/lib/srs/mastery";
+import { computeStreak } from "@/lib/srs/streak";
 import { SessionClient, type SessionCard } from "@/app/learning/SessionClient";
 import { QueueHero } from "@/components/learning/QueueHero";
 import { EmptyQueue } from "@/components/learning/EmptyQueue";
@@ -55,6 +57,30 @@ async function loadSessionCards(target: number): Promise<SessionCard[]> {
   });
 }
 
+async function loadTomorrowCount(): Promise<number> {
+  const result = await db.execute<{ count: number }>(
+    sql`SELECT COUNT(*)::int AS count
+        FROM review_state rs
+        JOIN cards c ON c.id = rs.card_id
+        WHERE c.is_disabled = false
+          AND rs.due_at >= NOW() + INTERVAL '1 day'
+          AND rs.due_at < NOW() + INTERVAL '2 days'`,
+  );
+  const arr = result as unknown as Array<{ count: number }>;
+  return arr[0]?.count ?? 0;
+}
+
+async function loadStreak(): Promise<number> {
+  const result = await db.execute<{ created_at: string }>(
+    sql`SELECT DISTINCT DATE_TRUNC('day', created_at)::text AS created_at
+        FROM attempts
+        WHERE created_at >= NOW() - INTERVAL '60 days'
+        ORDER BY created_at DESC`,
+  );
+  const arr = result as unknown as Array<{ created_at: string }>;
+  return computeStreak(arr.map((r) => new Date(r.created_at)));
+}
+
 export default async function LearningPage({
   searchParams,
 }: {
@@ -63,13 +89,17 @@ export default async function LearningPage({
   const params = await searchParams;
   const inSession = !!params.session;
 
-  const cards = await loadSessionCards(DAILY_TARGET);
+  const [cards, tomorrowCount, streak] = await Promise.all([
+    loadSessionCards(DAILY_TARGET),
+    loadTomorrowCount(),
+    loadStreak(),
+  ]);
 
   if (!inSession) {
     if (cards.length === 0) {
       return (
         <div className="h-full flex items-center justify-center">
-          <EmptyQueue tomorrowCount={0} />
+          <EmptyQueue tomorrowCount={tomorrowCount} streak={streak} />
         </div>
       );
     }
@@ -78,6 +108,7 @@ export default async function LearningPage({
         <QueueHero
           dueCount={cards.length}
           topicBreakdown={[]}
+          streak={streak}
         />
       </div>
     );
@@ -86,7 +117,7 @@ export default async function LearningPage({
   if (cards.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
-        <EmptyQueue tomorrowCount={0} />
+        <EmptyQueue tomorrowCount={tomorrowCount} streak={streak} />
       </div>
     );
   }

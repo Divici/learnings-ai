@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Flashcard } from "@/components/flashcard/Flashcard";
 import { FlashcardFaceMcFront, FlashcardFaceMcBack } from "@/components/flashcard/FlashcardFace.MC";
 import { FlashcardFaceClozeFront, FlashcardFaceClozeBack } from "@/components/flashcard/FlashcardFace.Cloze";
@@ -38,12 +38,33 @@ type LocalGrade = {
   freeformWhatToRevisit?: string | null;
 };
 
+const STORAGE_KEY = "learnings-ai:active-session";
+
 export function SessionClient({ cards, conceptName }: SessionClientProps) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [start, setStart] = useState(Date.now());
   const [gradeState, setGradeState] = useState<LocalGrade | null>(null);
   const [freeformLoading, setFreeformLoading] = useState(false);
+
+  // Write initial session state on mount.
+  useEffect(() => {
+    const cardIds = cards.map((c) => c.id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      cardIds, currentIndex: index, startedAt: Date.now(),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep session state in sync as the user progresses.
+  useEffect(() => {
+    const cardIds = cards.map((c) => c.id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      cardIds, currentIndex: index, startedAt: Date.now(),
+    }));
+    // Clear when finished.
+    if (index >= cards.length) localStorage.removeItem(STORAGE_KEY);
+  }, [index, cards]);
 
   const card = cards[index];
   if (!card) {
