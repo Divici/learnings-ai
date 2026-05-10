@@ -209,7 +209,7 @@ export const settings = pgTable("settings", {
     .default("50.00"),
   modelHaiku: text("model_haiku").notNull().default("anthropic/claude-haiku-4-5"),
   modelSonnet: text("model_sonnet").notNull().default("anthropic/claude-sonnet-4-6"),
-  embeddingModel: text("embedding_model").notNull().default("voyageai/voyage-3"),
+  embeddingModel: text("embedding_model").notNull().default("openai/text-embedding-3-small"),
   customFocus: jsonb("custom_focus").notNull().default(sql`'[]'::jsonb`),
   corpusSignature: text("corpus_signature"),
   theme: themeEnum("theme").notNull().default("dark"),

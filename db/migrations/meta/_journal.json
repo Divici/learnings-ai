@@ -15,6 +15,13 @@
       "when": 1778288345621,
       "tag": "0001_wealthy_wolfpack",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778426895666,
+      "tag": "0002_mysterious_magdalene",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,7 @@ export async function embedChunks(opts: EmbedChunksOptions): Promise<EmbedChunks
       model: opts.model,
       module: opts.module,
       input: batch,
+      dimensions: 1024,
     };
     if (opts.fetchImpl) {
       embedOpts.fetchImpl = opts.fetchImpl;

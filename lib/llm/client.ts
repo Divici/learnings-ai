@@ -50,6 +50,7 @@ export type EmbedOptions = {
   model: string;
   input: string[];
   module: string;
+  dimensions?: number; // OpenAI only — truncates output dim. Voyage ignores.
   fetchImpl?: typeof fetch;
   backoffMs?: number;
 };
@@ -196,6 +197,7 @@ export async function embed(opts: EmbedOptions): Promise<EmbedResult> {
             body: JSON.stringify({
               model: opts.model,
               input: opts.input,
+              ...(opts.dimensions !== undefined ? { dimensions: opts.dimensions } : {}),
             }),
           },
           30_000,

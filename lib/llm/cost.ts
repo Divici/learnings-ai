@@ -5,9 +5,10 @@ export const MODEL_PRICING: Record<
   string,
   { inputPerMTok: number; outputPerMTok: number }
 > = {
-  "anthropic/claude-haiku-4-5":  { inputPerMTok: 1.0, outputPerMTok: 5.0 },
-  "anthropic/claude-sonnet-4-6": { inputPerMTok: 3.0, outputPerMTok: 15.0 },
-  "voyageai/voyage-3":           { inputPerMTok: 0.06, outputPerMTok: 0 },
+  "anthropic/claude-haiku-4-5":           { inputPerMTok: 1.0,  outputPerMTok: 5.0  },
+  "anthropic/claude-sonnet-4-6":          { inputPerMTok: 3.0,  outputPerMTok: 15.0 },
+  "voyageai/voyage-3":                    { inputPerMTok: 0.06, outputPerMTok: 0    },
+  "openai/text-embedding-3-small":        { inputPerMTok: 0.02, outputPerMTok: 0    },
 };
 
 export function computeCost(
