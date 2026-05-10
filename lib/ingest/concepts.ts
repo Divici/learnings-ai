@@ -57,7 +57,9 @@ export async function extractConcepts(
     systemPrompt: SYSTEM_PROMPT,
     userPrompt,
     schema: ConceptSchema,
-    maxTokens: 4096,
+    // 25 concepts × ~300 tokens (name + 2-sentence summary + UUID arrays) can
+    // exceed the chat client's 4096 default and truncate the JSON mid-string.
+    maxTokens: 16384,
     ...(opts.fetchImpl !== undefined ? { fetchImpl: opts.fetchImpl } : {}),
   });
 
