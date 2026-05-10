@@ -47,3 +47,6 @@ playwright-report/
 test-results/
 .sentryclirc
 logs/
+
+# runtime logs
+/logs/

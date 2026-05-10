@@ -16,7 +16,7 @@ Next.js (App Router) + TypeScript (strict) + Tailwind v4 + shadcn/ui + Drizzle O
 - `components/` — UI primitives. `glass/` holds the design-system base components; everything else composes them.
 - `lib/` — domain modules. Each subdirectory has one job (`auth/`, `db/`, `llm/`, `srs/`, `grading/`, `planning/`, `ingest/`, `retrieval/`, `log/`).
 - `db/migrations/` — Drizzle Kit-generated SQL.
-- `sources/` — Gauntlet markdown lectures (input to the ingest pipeline).
+- `gauntlet_ai_resources/` — Gauntlet markdown lectures (input to the ingest pipeline). Each file uses `## Page N` boundaries.
 - `tests/{unit,component,e2e,fixtures}/` — three test layers + shared helpers.
 - `docs/superpowers/{specs,plans}/` — product design + implementation plans.
 - `docs/adr/` — architecture decision records (numbered).
@@ -37,6 +37,7 @@ Next.js (App Router) + TypeScript (strict) + Tailwind v4 + shadcn/ui + Drizzle O
 - New page → create under `app/<route>/page.tsx`. If protected, no extra work — middleware covers it.
 - New LLM-touching server route → use `lib/llm/` client (added in Plan 2). Always log to `llm_calls`.
 - New component → place in `components/<area>/`. Add a `tests/component/<name>.test.tsx`. Run `pnpm test:component`.
+- Ingest new lecture markdown → drop the file in `gauntlet_ai_resources/`, then `pnpm ingest`. Re-runs are idempotent (file hash + corpus signature). Use `--dry-run` to preview chunk counts without LLM calls.
 
 ## What NOT to do
 

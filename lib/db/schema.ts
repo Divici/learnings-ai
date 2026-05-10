@@ -46,16 +46,20 @@ export const themeEnum = pgEnum("theme", ["dark", "light", "system"]);
 
 // ─── source material ────────────────────────────────────────
 
-export const sourceFiles = pgTable("source_files", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  filename: text("filename").notNull(),
-  title: text("title").notNull(),
-  contentHash: text("content_hash").notNull(),
-  ingestedAt: timestamp("ingested_at", { withTimezone: true }).notNull(),
-  chunkCount: integer("chunk_count").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const sourceFiles = pgTable(
+  "source_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    filename: text("filename").notNull(),
+    title: text("title").notNull(),
+    contentHash: text("content_hash").notNull(),
+    ingestedAt: timestamp("ingested_at", { withTimezone: true }).notNull(),
+    chunkCount: integer("chunk_count").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("source_files_filename_unique").on(t.filename)],
+);
 
 export const sourceChunks = pgTable(
   "source_chunks",
@@ -205,7 +209,7 @@ export const settings = pgTable("settings", {
     .default("50.00"),
   modelHaiku: text("model_haiku").notNull().default("anthropic/claude-haiku-4-5"),
   modelSonnet: text("model_sonnet").notNull().default("anthropic/claude-sonnet-4-6"),
-  embeddingModel: text("embedding_model").notNull().default("voyageai/voyage-3"),
+  embeddingModel: text("embedding_model").notNull().default("openai/text-embedding-3-small"),
   customFocus: jsonb("custom_focus").notNull().default(sql`'[]'::jsonb`),
   corpusSignature: text("corpus_signature"),
   theme: themeEnum("theme").notNull().default("dark"),
