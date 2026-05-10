@@ -22,10 +22,14 @@ export type StructuredChatResult<S extends ZodType> = {
 };
 
 function tryParseJson(text: string): unknown {
-  // Models sometimes wrap JSON in ```json fences. Strip them first.
-  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/);
-  const raw = (fenced?.[1] ?? text).trim();
-  return JSON.parse(raw);
+  // Strip markdown fence delimiters independently — some models emit
+  // ```json with no closing fence, or fence only one end. Handle both.
+  const stripped = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
+  return JSON.parse(stripped);
 }
 
 export async function structuredChat<S extends ZodType>(

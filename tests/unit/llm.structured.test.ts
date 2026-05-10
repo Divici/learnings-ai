@@ -67,6 +67,43 @@ describe("structuredChat", () => {
     expect(lastMessage?.content).toMatch(/Reply with ONLY the corrected JSON/);
   });
 
+  it("strips markdown fence delimiters even when the closing fence is missing", async () => {
+    vi.mocked(chatCompletion).mockResolvedValueOnce({
+      content: '```json\n{"tags": ["a", "b"]}',
+      inputTokens: 1,
+      outputTokens: 1,
+      latencyMs: 1,
+    });
+    const out = await structuredChat({
+      apiKey: "sk-x",
+      model: "anthropic/claude-haiku-4-5",
+      module: "test",
+      systemPrompt: "you return json",
+      userPrompt: "go",
+      schema: Schema,
+    });
+    expect(out.value).toEqual({ tags: ["a", "b"] });
+    expect(vi.mocked(chatCompletion)).toHaveBeenCalledTimes(1);
+  });
+
+  it("strips markdown fence delimiters when both ends are fenced", async () => {
+    vi.mocked(chatCompletion).mockResolvedValueOnce({
+      content: '```json\n{"tags": ["c"]}\n```',
+      inputTokens: 1,
+      outputTokens: 1,
+      latencyMs: 1,
+    });
+    const out = await structuredChat({
+      apiKey: "sk-x",
+      model: "anthropic/claude-haiku-4-5",
+      module: "test",
+      systemPrompt: "you return json",
+      userPrompt: "go",
+      schema: Schema,
+    });
+    expect(out.value).toEqual({ tags: ["c"] });
+  });
+
   it("throws after one failed retry", async () => {
     vi.mocked(chatCompletion).mockResolvedValue({
       content: "still not json",
