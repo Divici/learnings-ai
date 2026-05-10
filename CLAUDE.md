@@ -38,6 +38,7 @@ Next.js (App Router) + TypeScript (strict) + Tailwind v4 + shadcn/ui + Drizzle O
 - New LLM-touching server route → use `lib/llm/` client (added in Plan 2). Always log to `llm_calls`.
 - New component → place in `components/<area>/`. Add a `tests/component/<name>.test.tsx`. Run `pnpm test:component`.
 - Ingest new lecture markdown → drop the file in `gauntlet_ai_resources/`, then `pnpm ingest`. Re-runs are idempotent (file hash + corpus signature). Use `--dry-run` to preview chunk counts without LLM calls.
+- Review a session locally → `pnpm dev`, navigate to `/learning`, paste token at `/auth` if needed. Use 1–4 keys to grade (Again/Hard/Good/Easy). Topic-pick at `/learning/topics`, card editor at `/learning/cards`. Local mid-session state persists via localStorage.
 
 ## What NOT to do
 
